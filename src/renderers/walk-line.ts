@@ -55,18 +55,19 @@ export function walkLine<TItem extends LinePoint, TStyle extends CanvasRendering
 
 		for (let i = visibleRange.from + 1; i < visibleRange.to; ++i) {
 			currentItem = items[i];
+			// Use the CURRENT point's style for the segment LEADING TO it (like TradingView)
+			// This means the color at point i determines the segment from i-1 to i
 			const itemStyle = styleGetter(renderingScope, currentItem);
 
 			switch (lineType) {
 				case LineType.Simple:
-					// Draw line TO current point first
-					ctx.lineTo(currentItem.x * horizontalPixelRatio, currentItem.y * verticalPixelRatio);
-					// If style changed, finish current segment and start new one FROM current point
+					// If style differs from current segment, finish current segment BEFORE drawing to new point
 					if (itemStyle !== currentStyle) {
 						changeStyle(itemStyle, currentItem);
-						// Start new path from current point (where we just drew to)
-						ctx.moveTo(currentItem.x * horizontalPixelRatio, currentItem.y * verticalPixelRatio);
+						ctx.moveTo(items[i - 1].x * horizontalPixelRatio, items[i - 1].y * verticalPixelRatio);
 					}
+					// Draw line TO current point with the new style
+					ctx.lineTo(currentItem.x * horizontalPixelRatio, currentItem.y * verticalPixelRatio);
 					break;
 				case LineType.WithSteps:
 					ctx.lineTo(currentItem.x * horizontalPixelRatio, items[i - 1].y * verticalPixelRatio);
