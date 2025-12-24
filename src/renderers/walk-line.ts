@@ -59,14 +59,21 @@ export function walkLine<TItem extends LinePoint, TStyle extends CanvasRendering
 
 			switch (lineType) {
 				case LineType.Simple:
+					// Draw line TO current point first
 					ctx.lineTo(currentItem.x * horizontalPixelRatio, currentItem.y * verticalPixelRatio);
+					// If style changed, finish current segment and start new one FROM current point
+					if (itemStyle !== currentStyle) {
+						changeStyle(itemStyle, currentItem);
+						// Start new path from current point (where we just drew to)
+						ctx.moveTo(currentItem.x * horizontalPixelRatio, currentItem.y * verticalPixelRatio);
+					}
 					break;
 				case LineType.WithSteps:
 					ctx.lineTo(currentItem.x * horizontalPixelRatio, items[i - 1].y * verticalPixelRatio);
 
 					if (itemStyle !== currentStyle) {
 						changeStyle(itemStyle, currentItem);
-						ctx.lineTo(currentItem.x * horizontalPixelRatio, items[i - 1].y * verticalPixelRatio);
+						ctx.moveTo(currentItem.x * horizontalPixelRatio, items[i - 1].y * verticalPixelRatio);
 					}
 
 					ctx.lineTo(currentItem.x * horizontalPixelRatio, currentItem.y * verticalPixelRatio);
@@ -81,13 +88,13 @@ export function walkLine<TItem extends LinePoint, TStyle extends CanvasRendering
 						currentItem.x * horizontalPixelRatio,
 						currentItem.y * verticalPixelRatio
 					);
+					// If style changed, finish current segment and start new one FROM current point
+					if (itemStyle !== currentStyle) {
+						changeStyle(itemStyle, currentItem);
+						ctx.moveTo(currentItem.x * horizontalPixelRatio, currentItem.y * verticalPixelRatio);
+					}
 					break;
 				}
-			}
-
-			if (lineType !== LineType.WithSteps && itemStyle !== currentStyle) {
-				changeStyle(itemStyle, currentItem);
-				ctx.moveTo(currentItem.x * horizontalPixelRatio, currentItem.y * verticalPixelRatio);
 			}
 		}
 
