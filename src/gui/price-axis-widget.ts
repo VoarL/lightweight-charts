@@ -141,6 +141,7 @@ export class PriceAxisWidget implements IDestroyable {
 
 	private _mouseEventHandler: MouseEventHandler;
 	private _mousedown: boolean = false;
+	private _onWheelBound: ((event: WheelEvent) => void) | null = null;
 
 	private readonly _widthCache: TextWidthCache = new TextWidthCache(200);
 
@@ -207,10 +208,17 @@ export class PriceAxisWidget implements IDestroyable {
 				treatHorzTouchDragAsPageScroll: () => true,
 			}
 		);
+
+		// Add wheel event for vertical price scale zoom
+		this._onWheelBound = this._onWheel.bind(this);
+		this._cell.addEventListener('wheel', this._onWheelBound, { passive: false });
 	}
 
 	public destroy(): void {
 		this._mouseEventHandler.destroy();
+		if (this._onWheelBound !== null) {
+			this._cell.removeEventListener('wheel', this._onWheelBound);
+		}
 
 		this._topCanvasBinding.unsubscribeSuggestedBitmapSizeChanged(this._topCanvasSuggestedBitmapSizeChangedHandler);
 		releaseCanvas(this._topCanvasBinding.canvasElement);
@@ -749,5 +757,42 @@ export class PriceAxisWidget implements IDestroyable {
 
 	private _baseFont(): string {
 		return makeFont(this._layoutOptions.fontSize, this._layoutOptions.fontFamily);
+	}
+
+	private _onWheel(event: WheelEvent): void {
+		if (this._priceScale === null || !this._options['handleScale'].mouseWheel) {
+			return;
+		}
+
+		if (this._priceScale.isEmpty()) {
+			return;
+		}
+
+		// Prevent default scrolling and propagation
+		event.preventDefault();
+		event.stopPropagation();
+
+		// Normalize scroll delta for different browsers/devices
+		let delta = event.deltaY;
+		if (event.deltaMode === 1) {
+			delta *= 32; // LINE mode
+		} else if (event.deltaMode === 2) {
+			delta *= 120; // PAGE mode
+		}
+
+		// Use the same scaling mechanism as mouse drag
+		// Start scale at center of the price axis
+		const center = this._size !== null ? this._size.height / 2 : 0;
+		const model = this._pane.chart().model();
+		const pane = this._pane.state();
+
+		// Calculate a y position that simulates dragging up (zoom in) or down (zoom out)
+		// delta > 0 means scroll down (zoom out), so we want to move "down" from center
+		// delta < 0 means scroll up (zoom in), so we want to move "up" from center
+		const scaleFactor = delta > 0 ? 30 : -30; // pixels to simulate drag
+
+		model.startScalePrice(pane, this._priceScale, center);
+		model.scalePriceTo(pane, this._priceScale, center + scaleFactor);
+		model.endScalePrice(pane, this._priceScale);
 	}
 }
